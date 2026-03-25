@@ -21,11 +21,11 @@ def offset(feature):
 
 
 class FourplaneEncoder(Encoder):
-    def __init__(self, board_size=(19, 19), use_player_plane=True, use_legal_moves=True):
+    def __init__(self, board_size=(19, 19), use_player_plane=True, use_legal_moves=False):
         self.board_width, self.board_height = board_size
         self.use_player_plane = use_player_plane
         self.use_legal_moves = use_legal_moves
-        self.num_planes = 4 + use_player_plane + use_legal_moves
+        self.num_planes = 4 + use_player_plane
 
     def name(self):
         return 'alphago'
@@ -60,71 +60,6 @@ class FourplaneEncoder(Encoder):
         if self.use_player_plane and next_player == Player.black:
             board_tensor[offset("current_player_color")] = 1
         
-        # Set legal moves - optimized inline computation to avoid expensive deep copies
-        if self.use_legal_moves:
-            if not game_state.is_over():
-                legal_moves_offset = offset("legal_moves")
-                board = game_state.board
-                
-                # Fast inline legal move checking without deep copies
-                for row in range(1, board.num_rows + 1):
-                    for col in range(1, board.num_cols + 1):
-                        point = Point(row, col)
-                        
-                        # Fast check: point must be empty
-                        if board._grid.get(point) is not None:
-                            continue
-                        
-                        # Check self-capture without deep copy
-                        has_liberty = False
-                        would_capture = False
-                        friendly_strings = []
-                        
-                        for neighbor in point.neighbors():
-                            if not board.is_on_grid(neighbor):
-                                continue
-                            neighbor_string = board._grid.get(neighbor)
-                            if neighbor_string is None:
-                                has_liberty = True
-                                break
-                            elif neighbor_string.color == next_player:
-                                friendly_strings.append(neighbor_string)
-                            else:  # opponent string
-                                if neighbor_string.num_liberties == 1:
-                                    would_capture = True
-                        
-                        # If has liberty, not self-capture
-                        if not has_liberty:
-                            # Check if all friendly strings would have no liberties
-                            if friendly_strings and all(s.num_liberties == 1 for s in friendly_strings):
-                                if not would_capture:
-                                    continue  # Self-capture, skip
-                        
-                        # Check ko violation - simplified heuristic for performance
-                        # Full ko check requires deep copy, so we use a fast heuristic:
-                        # If last move captured exactly one stone and we're trying to recapture
-                        # at that same position, it's likely a ko violation
-                        if would_capture and game_state.last_move and game_state.last_move.is_play:
-                            # Check if we're trying to play at the last move position
-                            # (which would be recapturing after a single-stone capture)
-                            if point == game_state.last_move.point:
-                                # Count how many stones we'd capture
-                                captured_stones = 0
-                                for neighbor in point.neighbors():
-                                    if not board.is_on_grid(neighbor):
-                                        continue
-                                    neighbor_string = board._grid.get(neighbor)
-                                    if neighbor_string and neighbor_string.color == opponent:
-                                        if neighbor_string.num_liberties == 1:
-                                            captured_stones += len(neighbor_string.stones)
-                                # If capturing exactly one stone at last move position, likely ko
-                                if captured_stones == 1:
-                                    continue  # Likely ko violation, skip
-                        
-                        # Valid move - set it
-                        r = row - 1
-                        c = col - 1
-                        board_tensor[legal_moves_offset][r][c] = 1
 
         return board_tensor
 

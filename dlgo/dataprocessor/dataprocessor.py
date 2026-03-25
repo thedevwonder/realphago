@@ -1,3 +1,4 @@
+import time
 from dlgo.gosgf import Sgf_game
 from dlgo.goboard import Board, GameState, Player, Point, Move
 from dlgo.encoders.base import get_encoder_by_name
@@ -6,6 +7,7 @@ import shutil
 import tarfile
 import gzip
 import os
+import tqdm
 
 
 __all__ = [
@@ -44,7 +46,8 @@ class DataProcessor:
             file_list = zip_file.getnames()
         # total number of moves
         print(f"zip_file: {zip_file_name}")
-        total_examples = self.num_total_examples(zip_file, file_list)
+        print(f"no of files: {len(file_list[1:])}")
+        total_examples = self.num_total_examples(zip_file, file_list[1:])
         print(f"total examples: {total_examples}")
         shape = self.encoder.shape()
         feature_shape = np.insert(shape, 0, np.asarray([total_examples]))
@@ -54,7 +57,7 @@ class DataProcessor:
         labels = []
         
         
-        for name in file_list[1:]:
+        for name in tqdm.tqdm(file_list[1:]):
             # read sgf content as string
             if zip_file:
                 with zip_file.extractfile(name) as file:
@@ -74,6 +77,7 @@ class DataProcessor:
             # then we play the moves from the sequence
             # for every game state, we encode the game state and append to features
             # and next move we encode as label
+            start = time.time()
             for item in sgf.main_sequence_iter():
                 color, move_tuple = item.get_move()
                 point = None
@@ -96,6 +100,7 @@ class DataProcessor:
                         move = Move.pass_turn()    
                     game_state = game_state.apply_move(move)
                     first_move_done = True
+            end = time.time()
 
         # Save the processed data
         base_name = zip_file_name.replace('.tar.gz', '') if zip_file_name else 'kgs-server-'
@@ -279,10 +284,10 @@ class DataProcessor:
         
         # Recursively transform the previous state if it exists
         transformed_previous_state = None
-        if game_state.previous_state is not None:
-            transformed_previous_state = self.apply_transformation(
-                game_state.previous_state, transformation
-            )
+        # if game_state.previous_state is not None:
+        #     transformed_previous_state = self.apply_transformation(
+        #         game_state.previous_state, transformation
+        #     )
         
         # Create new GameState with transformed board and previous state
         return GameState(new_board, game_state.next_player, transformed_previous_state, last_move)    

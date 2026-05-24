@@ -33,4 +33,7 @@ The Training Pipeline for Supervised Learning is written in the notebook [alphag
 Uses the REINFORCE algorithm to update the policy towards winning moves.
 The Training pipeline for Reinforcement Learning of Policy Network is written in the notebook [alphago.ipynb](https://github.com/thedevwonder/re-alphago/blob/master/alphago.ipynb)
 
-### Reinforcement Learning of Value Network [TODO]
+### Reinforcement Learning of Value Network
+
+Uses regression on game state and the outcome pair to train a value function which evaluates the chances of winning the game from a given game position.
+The training pipeline for Value Network is written in the notebook: [alphago.ipynb](https://github.com/thedevwonder/re-alphago/blob/master/alphago.ipynb)
